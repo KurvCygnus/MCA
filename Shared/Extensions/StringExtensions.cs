@@ -394,25 +394,4 @@ public static class StringExtensions {
         foreach (char v in str) result = (result << 5) ^ result ^ v;
         return result ^ 0xA98F501BC684032FUL;
     }
-
-    /// <summary>
-    /// 将字符串转化为 JSON 对象，若失败则抛出异常。
-    /// </summary>
-    public static JToken? DeserializeJson(this string data) {
-        try {
-            return JsonConvert.DeserializeObject<JToken>(data, new JsonSerializerSettings {DateTimeZoneHandling = DateTimeZoneHandling.Local});
-        } catch (Exception ex) {
-            int length = (data ?? "").Length;
-            throw new FormatException("JSON deserialize failed: " + 
-                (length > 2000
-                    ? $"{data![..500]}...(total {length} characters)...{data[^500..]}"
-                    : (data ?? "")), ex);
-        }
-    }
-    /// <summary>
-    /// 将字符串转化为 JSON 对象，若失败则抛出异常。
-    /// </summary>
-    public static T? DeserializeJson<T>(this string data) where T : JToken 
-        => (T?) DeserializeJson(data);
-
 }

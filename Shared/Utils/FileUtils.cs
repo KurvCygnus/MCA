@@ -63,18 +63,21 @@ public static class FileUtils {
     public static string[] TryReadAsLines(string filePath, bool skipEmptyLines = false, Encoding? encoding = null, Type? type = null)
         => FileUtils.TryReadAsString(filePath, encoding, type)?.SplitLines(skipEmptyLines) ?? [];
 
+    //? 临时保留 Newtonsoft 入口：Config 与测试仍通过 ReadAsJson 读取 JSON，待 Shared 迁移到 System.Text.Json 时删除。
+    internal static readonly JsonSerializerSettings LegacyJsonSettings = new() { DateParseHandling = DateParseHandling.None };
+
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
     public static JToken? ReadAsJson(string filePath, Encoding? encoding = null, Type? type = null)
-        => FileUtils.ReadAsString(filePath, encoding, type).DeserializeJson();
+        => JsonConvert.DeserializeObject<JToken>(FileUtils.ReadAsString(filePath, encoding, type), LegacyJsonSettings);
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
     public static T? ReadAsJson<T>(string filePath, Encoding? encoding = null, Type? type = null) where T : JToken 
-        => FileUtils.ReadAsString(filePath, encoding, type).DeserializeJson<T>();
+        => (T?)FileUtils.ReadAsJson(filePath, encoding, type);
 
     #endregion
 
@@ -574,7 +577,7 @@ public class FileChecker {
             if (IsJson) {
                 string content = FileUtils.ReadAsString(localPath);
                 if (content == "") return "读取到的文件为空";
-                content.DeserializeJson();
+                _ = JsonConvert.DeserializeObject<JToken>(content, FileUtils.LegacyJsonSettings);
             }
 
             return null;
