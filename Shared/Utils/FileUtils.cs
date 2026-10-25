@@ -551,7 +551,7 @@ public class FileChecker {
                 hash = hash!.Lower();
                 switch (hash.Length) {
                     case 32:
-                        string md5 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Md5);
+                        string md5 = CryptographyUtils.ComputeFileHash(localPath);
                         if (hash != md5) return "文件 MD5 应为 " + hash + "，实际为 " + md5;
                         break;
                     case 40:

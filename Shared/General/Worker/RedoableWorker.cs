@@ -133,7 +133,7 @@ public abstract class RedoableWorkerBase<TOut>(Func<CancellationToken?, Progress
             } catch (Exception ex) {
                 if (!ex.IsCanceled())
                     Logger.Log(ex, $"{creatorMemberName}：运行失败{(pendingRedo ? "，但即将重启，或可忽略" : "")}", 
-                        pendingRedo ? LogLevel.Warn : LogLevel.Error, LogBehavior.ToastIfDebug);
+                        pendingRedo ? LogLevel.Warn : LogLevel.Error);
                 lock (this) {
                     realCts?.Dispose();
                     if (pendingRedo) { // 接取重启请求
