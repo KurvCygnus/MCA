@@ -268,8 +268,11 @@ public static class StringExtensions {
     /// </summary>
     public static string ReplaceLineEndings(this string input, string newValue, bool mergeMultiple = false) 
         => (mergeMultiple ? regexLineEndingAndMerge : regexLineEnding).Replace(input, newValue.Replace("$", "$$")); // 避免识别成捕获组
-    private static readonly Regex regexLineEndingAndMerge = new(@"(?:\r\n|[\n\r\f\u0085\u2028\u2029])+", RegexOptions.Compiled);
-    private static readonly Regex regexLineEnding = new(@"\r\n|[\n\r\f\u0085\u2028\u2029]", RegexOptions.Compiled);
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
+    private static readonly Regex regexLineEndingAndMerge = new(
+        @"(?:\r\n|[\n\r\f\u0085\u2028\u2029])+", RegexOptions.None, RegexTimeout);
+    private static readonly Regex regexLineEnding = new(
+        @"\r\n|[\n\r\f\u0085\u2028\u2029]", RegexOptions.None, RegexTimeout);
 
     #endregion
 
@@ -280,7 +283,7 @@ public static class StringExtensions {
     /// </summary>
     public static IEnumerable<string> RegexSearch(this string str, string pattern, RegexOptions options = RegexOptions.None) {
         try {
-            return Regex.Matches(str, pattern, options).Cast<Match>().Select(m => m.Value);
+            return Regex.Matches(str, pattern, options, RegexTimeout).Cast<Match>().Select(m => m.Value);
         } catch (Exception ex) {
             Logger.Warn(ex, $"{nameof(RegexSearch)} 失败（{pattern}）");
             return [];
@@ -292,7 +295,7 @@ public static class StringExtensions {
     /// </summary>
     public static string? RegexSeek(this string str, string pattern, RegexOptions options = RegexOptions.None) {
         try {
-            var match = Regex.Match(str, pattern, options);
+            var match = Regex.Match(str, pattern, options, RegexTimeout);
             return match.Success ? match.Value : null;
         } catch (Exception ex) {
             Logger.Warn(ex, $"{nameof(RegexSeek)} 失败（{pattern}）");
@@ -305,7 +308,7 @@ public static class StringExtensions {
     /// </summary>
     public static bool RegexCheck(this string str, string pattern, RegexOptions options = RegexOptions.None) {
         try {
-            return Regex.IsMatch(str, pattern, options);
+            return Regex.IsMatch(str, pattern, options, RegexTimeout);
         } catch (Exception ex) {
             Logger.Warn(ex, $"{nameof(RegexCheck)} 失败（{pattern}）");
             return false;
@@ -317,7 +320,7 @@ public static class StringExtensions {
     /// 失败时会抛出异常。
     /// </summary>
     public static string RegexReplace(this string allContents, string searchRegex, string replaceTo, RegexOptions options = RegexOptions.None) {
-        return Regex.Replace(allContents, searchRegex, replaceTo, options);
+        return Regex.Replace(allContents, searchRegex, replaceTo, options, RegexTimeout);
     }
 
     /// <summary>
@@ -325,7 +328,7 @@ public static class StringExtensions {
     /// 失败时会抛出异常。
     /// </summary>
     public static string RegexReplace(this string allContents, string searchRegex, MatchEvaluator replaceTo, RegexOptions options = RegexOptions.None) {
-        return Regex.Replace(allContents, searchRegex, replaceTo, options);
+        return Regex.Replace(allContents, searchRegex, replaceTo, options, RegexTimeout);
     }
 
     #endregion

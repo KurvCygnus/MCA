@@ -20,7 +20,8 @@ public static class EnumUtils {
         } else if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var number)) {
             return (T) Enum.ToObject(typeof(T), Convert.ToInt64(number));
         } else {
-            return (T) Enum.Parse(typeof(T), value, true);
+            if (Enum.TryParse<T>(value, true, out var parsed)) return parsed;
+            throw new ArgumentException($"无法将 \"{value}\" 转换为枚举 {typeof(T).Name}。", nameof(value));
         }
     }
 

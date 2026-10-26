@@ -9,7 +9,7 @@ public static class FileUtils {
     /// 打开指定文件的只读 <see cref="Stream"/>。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static Stream ReadAsStream(string filePath, Type? type = null) {
+    public static Stream ReadAsStream(string filePath, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type? type = null) {
         if (type is null) {
             return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ 
                 => new FileStream(PathUtils.ForApi(filePath), FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
