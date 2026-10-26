@@ -1,4 +1,7 @@
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 namespace MeloongCore;
 
 #region ConfigProvider | 配置提供器
@@ -25,59 +28,70 @@ public class JsonConfigProvider : IConfigProvider {
     }
 
     // 原始文件缓存
-    private Lazy<JObject> json;
+    private Lazy<JsonObject> json;
     // 反序列化后的结果缓存
     private readonly ConcurrentDictionary<string, object?> cache = new();
+    //? Newtonsoft 的 ToObject/反序列化默认大小写不敏感，STJ 需显式开启以保持 Config<T> 读取语义不变。
+    private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
+    //? UnsafeRelaxedJsonEscaping 让中文等非 ASCII 字符原样写入，与旧 Newtonsoft 的文件布局保持一致。
+    private static readonly JsonSerializerOptions WriteOptions = new() {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
     private void InitJson() {
         json = new(() => {
             try {
-                return FileUtils.Exists(filePath) ? ((JObject?) FileUtils.ReadAsJson(filePath) ?? []) : [];
+                return FileUtils.Exists(filePath) ? FileUtils.ReadAsJson(filePath) as JsonObject ?? new JsonObject() : new JsonObject();
             } catch (Exception ex) {
                 Logger.Error(ex, $"读取配置文件失败（{filePath}）", LogBehavior.Alert);
-                return [];
+                return new JsonObject();
             }
         });
     }
 
     // ================================= 设置、读取、缓存 =================================
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Config<T> 不在 AOT 路径上，泛型反射已在 TECHDEBT 第 8 节记录")]
     public void Set<T>(string key, T? value, bool encrypted) {
         cache[key] = value;
         lock (this) {
             if (value is null) {
                 // 直接在 JSON 中表示为 null
-                json.Value[key] = JValue.CreateNull();
+                json.Value[key] = null;
                 Logger.Trace($"配置已修改：{key} = null（{filePath}）");
             } else if (encrypted) {
                 // 需要加密，在 JSON 中保存密文字符串
                 throw new NotImplementedException("加密需要改为使用识别码，现在尚未实现。");
                 // Logger.Trace($"配置已修改：{key} = 已加密（{filePath}）");
-                // json.Value[key] = CryptographyUtils.AesEncrypt(value is string str ? str : JsonConvert.SerializeObject(value));
+                // json.Value[key] = CryptographyUtils.AesEncrypt(value is string str ? str : JsonSerializer.Serialize(value));
             } else {
-                // 用 JToken 保留原始结构
-                JToken token = JToken.FromObject(value);
-                json.Value[key] = token;
-                Logger.Trace($"配置已修改：{key} = {token.ToString(Formatting.None)}（{filePath}）");
+                // 用 JsonNode 保留原始结构
+                JsonNode node = JsonSerializer.SerializeToNode(value)!;
+                json.Value[key] = node;
+                Logger.Trace($"配置已修改：{key} = {node.ToJsonString()}（{filePath}）");
             }
         }
         MakeDirty();
     }
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "Config<T> 不在 AOT 路径上，泛型反射已在 TECHDEBT 第 8 节记录")]
     public T? Read<T>(string key, T? defaultValue, bool encrypted) {
         if (cache.TryGetValue(key, out var cachedValue)) return (T?) cachedValue; // 读取缓存
-        JToken entry;
+        JsonNode? entry;
         lock (this) {
-            if (!json.Value.TryGetValue(key, out entry!)) return defaultValue; // 未找到该键
-            entry = entry.DeepClone();
+            if (!json.Value.TryGetPropertyValue(key, out entry)) return defaultValue; // 未找到该键
+            entry = entry?.DeepClone();
         }
         try {
             T? result;
-            if (entry.Type is JTokenType.Null or JTokenType.Undefined) {
+            if (entry is null) {
                 result = default;
             } else if (encrypted) {
-                string plainText = CryptographyUtils.AesDecrypt(entry.Value<string>())!;
-                result = typeof(T) == typeof(string) ? (T) (object) plainText : JsonConvert.DeserializeObject<T>(plainText);
+                string plainText = CryptographyUtils.AesDecrypt(entry.GetValue<string>())!;
+                result = typeof(T) == typeof(string) ? (T) (object) plainText : JsonSerializer.Deserialize<T>(plainText, SerializerOptions);
             } else {
-                result = entry.ToObject<T>();
+                result = entry.Deserialize<T>(SerializerOptions);
             }
             cache[key] = result;
             return result;
@@ -113,7 +127,7 @@ public class JsonConfigProvider : IConfigProvider {
     public void Save() {
         lock (this) {
             if (!isDirty) return;
-            FileUtils.WriteAtomic(filePath, json.Value.ToString(Formatting.Indented));
+            FileUtils.WriteAtomic(filePath, json.Value.ToJsonString(WriteOptions));
             isDirty = false;
         }
     }
@@ -226,10 +240,10 @@ public static class ConfigUtils {
         }
     }
 
-    private static readonly Lazy<JObject> secret = new(() => {
+    private static readonly Lazy<JsonObject> secret = new(() => {
         string filePath = Path.Combine(Paths.AppData, "Meloong", "Dev", "secret.json");
         try {
-            return FileUtils.Exists(filePath) ? JObject.Parse(FileUtils.ReadAsString(filePath)) : [];
+            return FileUtils.Exists(filePath) ? JsonNode.Parse(FileUtils.ReadAsString(filePath)) as JsonObject ?? throw new JsonException("secret.json 不是 JSON 对象") : new JsonObject();
         } catch {
             throw new InvalidDataException($"读取密钥文件失败（{filePath}），请检查文件内容与加密格式。");
         }
@@ -237,7 +251,7 @@ public static class ConfigUtils {
 
     /// <summary>从 secret.json 中读取加密的密钥；如果未找到对应密钥则抛出异常。</summary>
     public static string GetSecret(string key) {
-        string value = secret.Value.Value<string>(key) ?? throw new KeyNotFoundException($"未找到密钥：{key}");
+        string value = secret.Value[key]?.GetValue<string>() ?? throw new KeyNotFoundException($"未找到密钥：{key}");
         try {
             return CryptographyUtils.AesDecrypt(value)!;
         } catch {

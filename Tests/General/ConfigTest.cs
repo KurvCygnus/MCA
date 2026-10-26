@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace MeloongCore.Tests;
 public class ConfigTest : TestWithFolder {
 
@@ -99,9 +101,9 @@ public class ConfigTest : TestWithFolder {
         entry.Set("updated");
         provider.Save();
 
-        Newtonsoft.Json.Linq.JObject config = FileUtils.ReadAsJson<Newtonsoft.Json.Linq.JObject>(configFile)!;
-        await Assert.That(config.Value<bool>("existing")).IsTrue();
-        await Assert.That(config.Value<string>("text")).IsEqualTo("updated");
+        JsonObject config = (JsonObject)JsonNode.Parse(FileUtils.ReadAsString(configFile))!;
+        await Assert.That(config["existing"]!.GetValue<bool>()).IsTrue();
+        await Assert.That(config["text"]!.GetValue<string>()).IsEqualTo("updated");
         await Assert.That(DirectoryUtils.EnumerateFiles(tempFolder, searchPattern: "config.json.*.tmp")).IsEmpty();
     }
 

@@ -1,4 +1,6 @@
 using System.IO.Compression;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MeloongCore;
 public static class FileUtils {
@@ -63,21 +65,28 @@ public static class FileUtils {
     public static string[] TryReadAsLines(string filePath, bool skipEmptyLines = false, Encoding? encoding = null, Type? type = null)
         => FileUtils.TryReadAsString(filePath, encoding, type)?.SplitLines(skipEmptyLines) ?? [];
 
-    //? 临时保留 Newtonsoft 入口：Config 与测试仍通过 ReadAsJson 读取 JSON，待 Shared 迁移到 System.Text.Json 时删除。
-    internal static readonly JsonSerializerSettings LegacyJsonSettings = new() { DateParseHandling = DateParseHandling.None };
+    internal static readonly JsonNodeOptions NodeOptions = new() { PropertyNameCaseInsensitive = true };
+    //? internal 供同文件的 FileChecker 校验 IsJson 复用，保持与旧 Newtonsoft 一致的宽松解析（允许注释与尾逗号）。
+    internal static readonly JsonDocumentOptions DocumentOptions = new() {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
+    };
 
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static JToken? ReadAsJson(string filePath, Encoding? encoding = null, Type? type = null)
-        => JsonConvert.DeserializeObject<JToken>(FileUtils.ReadAsString(filePath, encoding, type), LegacyJsonSettings);
+    public static JsonNode? ReadAsJson(string filePath, Encoding? encoding = null) {
+        var text = ReadAsString(filePath, encoding);
+        return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text, NodeOptions, DocumentOptions);
+    }
+
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static T? ReadAsJson<T>(string filePath, Encoding? encoding = null, Type? type = null) where T : JToken 
-        => (T?)FileUtils.ReadAsJson(filePath, encoding, type);
+    public static T? ReadAsJson<T>(string filePath, Encoding? encoding = null) where T : JsonNode =>
+        ReadAsJson(filePath, encoding) as T;
 
     #endregion
 
@@ -577,7 +586,7 @@ public class FileChecker {
             if (IsJson) {
                 string content = FileUtils.ReadAsString(localPath);
                 if (content == "") return "读取到的文件为空";
-                _ = JsonConvert.DeserializeObject<JToken>(content, FileUtils.LegacyJsonSettings);
+                _ = JsonNode.Parse(content, FileUtils.NodeOptions, FileUtils.DocumentOptions);
             }
 
             return null;

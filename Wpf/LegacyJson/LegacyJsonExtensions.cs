@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -13,4 +14,10 @@ public static class LegacyJsonExtensions {
 
     public static T? DeserializeJson<T>(this string? data) where T : JToken =>
         (T?)DeserializeJson(data);
+
+    public static JsonNode? ToJsonNode(this JToken? token) =>
+        token is null ? null : JsonNode.Parse(token.ToString(Formatting.None));
+
+    public static JToken? ToJToken(this JsonNode? node) =>
+        node is null ? null : JToken.Parse(node.ToJsonString());
 }
