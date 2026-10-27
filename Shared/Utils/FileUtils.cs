@@ -74,7 +74,6 @@ public static class FileUtils {
 
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
-    /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
     public static JsonNode? ReadAsJson(string filePath, Encoding? encoding = null) {
         var text = ReadAsString(filePath, encoding);
@@ -83,7 +82,6 @@ public static class FileUtils {
 
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
-    /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
     public static T? ReadAsJson<T>(string filePath, Encoding? encoding = null) where T : JsonNode =>
         ReadAsJson(filePath, encoding) as T;
