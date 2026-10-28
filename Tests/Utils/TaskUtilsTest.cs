@@ -1,9 +1,11 @@
 namespace MeloongCore.Tests;
 
-public class TaskUtilsTest : TestBase {
+public class TaskUtilsTest : TestBase
+{
 
     [Test]
-    public async Task WhenAll_汇总等权子进度并保持结果顺序() {
+    public async Task WhenAll_汇总等权子进度并保持结果顺序()
+    {
         var progress = new ProgressProvider();
         var continueSecond = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         ProgressProvider? firstProgress = null, secondProgress = null;

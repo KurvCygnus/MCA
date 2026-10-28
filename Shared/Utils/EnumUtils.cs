@@ -1,7 +1,9 @@
 using System.Globalization;
 
 namespace MeloongCore;
-public static class EnumUtils {
+
+public static class EnumUtils
+{
 
     /// <summary>
     /// 获取枚举的所有值。
@@ -14,12 +16,16 @@ public static class EnumUtils {
     /// 支持枚举名或枚举序数；若为空字符串或 <see langword="null"/> 则返回 0。
     /// 转换失败会抛出异常。
     /// </summary>
-    public static T FromString<T>(string? value) where T : struct, Enum {
-        if (string.IsNullOrEmpty(value)) {
+    public static T FromString<T>(string? value) where T : struct, Enum
+    {
+        if (string.IsNullOrEmpty(value))
+        {
             return (T) Enum.ToObject(typeof(T), 0);
-        } else if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var number)) {
+        } else if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out var number))
+        {
             return (T) Enum.ToObject(typeof(T), Convert.ToInt64(number));
-        } else {
+        } else
+        {
             if (Enum.TryParse<T>(value, true, out var parsed)) return parsed;
             throw new ArgumentException($"无法将 \"{value}\" 转换为枚举 {typeof(T).Name}。", nameof(value));
         }
@@ -35,11 +41,13 @@ public static class EnumUtils {
     /// <remarks>
     /// 会跳过：0、非 2 的幂的值、不在枚举值中的数、组合值、对应同一个枚举项的多个别名。
     /// </remarks>
-    public static List<T> GetAllFlags<T>() where T : struct, Enum {
+    public static List<T> GetAllFlags<T>() where T : struct, Enum
+    {
         if (allFlagsCache.TryGetValue(typeof(T), out var cached)) return cached.Cast<T>().ToList();
         if (!typeof(T).IsDefined(typeof(FlagsAttribute), inherit: false)) throw new ArgumentException($"枚举 {typeof(T).FullName} 没有定义 FlagsAttribute。");
         var flags = new List<T>();
-        foreach (var element in EnumUtils.GetAllValues<T>().Distinct()) {
+        foreach (var element in EnumUtils.GetAllValues<T>().Distinct())
+        {
             var number = Convert.ToInt64(element, CultureInfo.InvariantCulture);
             if (number == 0 || (number & (number - 1)) != 0) continue; // 跳过 0 和非 2 的幂的值
             flags.Add(element);

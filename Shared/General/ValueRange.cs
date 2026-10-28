@@ -7,7 +7,8 @@ public sealed class ValueRange<T>(
     T? lower, T? upper,
     bool isLowerInclusive, bool isUpperInclusive,
     bool hasLower, bool hasUpper
-) : IEquatable<ValueRange<T>?> where T : IComparable<T> {
+) : IEquatable<ValueRange<T>?> where T : IComparable<T>
+{
 
     #region 基础字段
 
@@ -20,12 +21,14 @@ public sealed class ValueRange<T>(
     public void ClearLower() { Lower = default; HasLower = false; }
     public void ClearUpper() { Upper = default; HasUpper = false; }
 
-    public void SetLower(T lower, bool isInclusive) {
+    public void SetLower(T lower, bool isInclusive)
+    {
         Lower = lower;
         HasLower = true;
         IsLowerInclusive = isInclusive;
     }
-    public void SetUpper(T upper, bool isInclusive) {
+    public void SetUpper(T upper, bool isInclusive)
+    {
         Upper = upper;
         HasUpper = true;
         IsUpperInclusive = isInclusive;
@@ -69,7 +72,8 @@ public sealed class ValueRange<T>(
     /// <summary>
     /// 从字符串解析 <see cref="ValueRange{T}"/> 实例。
     /// </summary>
-    public static ValueRange<T> FromString(string str, Func<string, T>? parseFunc = null) {
+    public static ValueRange<T> FromString(string str, Func<string, T>? parseFunc = null)
+    {
         if (string.IsNullOrEmpty(str)) throw new ArgumentException("不能为空");
         var isLowerInclusive = str[0] == '[';
         var isUpperInclusive = str[^1] == ']';
@@ -83,11 +87,13 @@ public sealed class ValueRange<T>(
         T? upper = default;
         bool hasLower = false;
         bool hasUpper = false;
-        if (lowerStr is not ("" or "-∞")) {
+        if (lowerStr is not ("" or "-∞"))
+        {
             lower = parseFunc != null ? parseFunc(lowerStr) : (T) Convert.ChangeType(lowerStr, typeof(T));
             hasLower = true;
         }
-        if (upperStr is not ("" or "+∞" or "∞")) {
+        if (upperStr is not ("" or "+∞" or "∞"))
+        {
             upper = parseFunc != null ? parseFunc(upperStr) : (T) Convert.ChangeType(upperStr, typeof(T));
             hasUpper = true;
         }
@@ -102,13 +108,16 @@ public sealed class ValueRange<T>(
     /// <summary>
     /// 判断指定值是否位于当前范围内。
     /// </summary>
-    public bool Contains(T value) {
-        if (HasLower) {
+    public bool Contains(T value)
+    {
+        if (HasLower)
+        {
             var compareLower = value.CompareTo(Lower!);
             if (compareLower < 0) return false;
             if (compareLower == 0 && !IsLowerInclusive) return false;
         }
-        if (HasUpper) {
+        if (HasUpper)
+        {
             var compareUpper = value.CompareTo(Upper!);
             if (compareUpper > 0) return false;
             if (compareUpper == 0 && !IsUpperInclusive) return false;
@@ -119,7 +128,8 @@ public sealed class ValueRange<T>(
     /// <summary>
     /// 该范围是否不包含任何值。
     /// </summary>
-    public bool IsEmpty() {
+    public bool IsEmpty()
+    {
         if (!HasLower || !HasUpper) return false;
         int compared = Lower!.CompareTo(Upper!);
         return compared > 0 || (compared == 0 && (!IsLowerInclusive || !IsUpperInclusive));
@@ -129,54 +139,63 @@ public sealed class ValueRange<T>(
     /// 取当前范围与另一个范围的交集。
     /// </summary>
     /// <returns> 若两个范围存在交集，则返回交集范围；否则返回 <see langword="null" />。 </returns>
-    public ValueRange<T> Intersect(ValueRange<T> other) {
+    public ValueRange<T> Intersect(ValueRange<T> other)
+    {
         T? lower = default;
         T? upper = default;
         var isLowerInclusive = true;
         var isUpperInclusive = true;
 
-        if (HasLower && other.HasLower) {
-            switch (Lower!.CompareTo(other.Lower!)) {
-                case > 0:
-                    lower = Lower;
-                    isLowerInclusive = IsLowerInclusive;
-                    break;
-                case < 0:
-                    lower = other.Lower;
-                    isLowerInclusive = other.IsLowerInclusive;
-                    break;
-                default:
-                    lower = Lower;
-                    isLowerInclusive = IsLowerInclusive && other.IsLowerInclusive;
-                    break;
+        if (HasLower && other.HasLower)
+        {
+            switch (Lower!.CompareTo(other.Lower!))
+            {
+            case > 0:
+                lower = Lower;
+                isLowerInclusive = IsLowerInclusive;
+                break;
+            case < 0:
+                lower = other.Lower;
+                isLowerInclusive = other.IsLowerInclusive;
+                break;
+            default:
+                lower = Lower;
+                isLowerInclusive = IsLowerInclusive && other.IsLowerInclusive;
+                break;
             }
-        } else if (HasLower) {
+        } else if (HasLower)
+        {
             lower = Lower;
             isLowerInclusive = IsLowerInclusive;
-        } else if (other.HasLower) {
+        } else if (other.HasLower)
+        {
             lower = other.Lower;
             isLowerInclusive = other.IsLowerInclusive;
         }
 
-        if (HasUpper && other.HasUpper) {
-            switch (Upper!.CompareTo(other.Upper!)) {
-                case < 0:
-                    upper = Upper;
-                    isUpperInclusive = IsUpperInclusive;
-                    break;
-                case > 0:
-                    upper = other.Upper;
-                    isUpperInclusive = other.IsUpperInclusive;
-                    break;
-                default:
-                    upper = Upper;
-                    isUpperInclusive = IsUpperInclusive && other.IsUpperInclusive;
-                    break;
+        if (HasUpper && other.HasUpper)
+        {
+            switch (Upper!.CompareTo(other.Upper!))
+            {
+            case < 0:
+                upper = Upper;
+                isUpperInclusive = IsUpperInclusive;
+                break;
+            case > 0:
+                upper = other.Upper;
+                isUpperInclusive = other.IsUpperInclusive;
+                break;
+            default:
+                upper = Upper;
+                isUpperInclusive = IsUpperInclusive && other.IsUpperInclusive;
+                break;
             }
-        } else if (HasUpper) {
+        } else if (HasUpper)
+        {
             upper = Upper;
             isUpperInclusive = IsUpperInclusive;
-        } else if (other.HasUpper) {
+        } else if (other.HasUpper)
+        {
             upper = other.Upper;
             isUpperInclusive = other.IsUpperInclusive;
         }
@@ -189,7 +208,8 @@ public sealed class ValueRange<T>(
     #region 相等判断（自动生成）
 
     public override bool Equals(object? obj) => Equals(obj as ValueRange<T>);
-    public bool Equals(ValueRange<T>? other) {
+    public bool Equals(ValueRange<T>? other)
+    {
         return other is not null&&
                EqualityComparer<T?>.Default.Equals(Lower, other.Lower)&&
                EqualityComparer<T?>.Default.Equals(Upper, other.Upper)&&
@@ -198,7 +218,8 @@ public sealed class ValueRange<T>(
                IsLowerInclusive==other.IsLowerInclusive&&
                IsUpperInclusive==other.IsUpperInclusive;
     }
-    public override int GetHashCode() {
+    public override int GetHashCode()
+    {
         int hashCode = 169504101;
         hashCode=hashCode*-1521134295+EqualityComparer<T?>.Default.GetHashCode(Lower);
         hashCode=hashCode*-1521134295+EqualityComparer<T?>.Default.GetHashCode(Upper);

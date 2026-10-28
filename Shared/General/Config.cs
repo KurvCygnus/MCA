@@ -6,7 +6,8 @@ namespace MeloongCore;
 
 #region ConfigProvider | 配置提供器
 
-public interface IConfigProvider {
+public interface IConfigProvider
+{
     void Set<T>(string key, T? value, bool encrypted);
     void Remove(string key);
     T? Read<T>(string key, T? defaultValue, bool encrypted);
@@ -14,12 +15,14 @@ public interface IConfigProvider {
     void DiscardCache();
 }
 
-public class JsonConfigProvider : IConfigProvider {
+public class JsonConfigProvider : IConfigProvider
+{
     public static readonly ConcurrentBag<WeakReference<JsonConfigProvider>> allProviders = [];
     private readonly string filePath;
 
 #pragma warning disable CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 'required' 修饰符或声明为可以为 null。
-    public JsonConfigProvider(string filePath) {
+    public JsonConfigProvider(string filePath)
+    {
 #pragma warning restore CS8618 // 在退出构造函数时，不可为 null 的字段必须包含非 null 值。请考虑添加 'required' 修饰符或声明为可以为 null。
         this.filePath = filePath;
         allProviders.Add(new(this));
@@ -34,15 +37,20 @@ public class JsonConfigProvider : IConfigProvider {
     //? Newtonsoft 的 ToObject/反序列化默认大小写不敏感，STJ 需显式开启以保持 Config<T> 读取语义不变。
     private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
     //? UnsafeRelaxedJsonEscaping 让中文等非 ASCII 字符原样写入，与旧 Newtonsoft 的文件布局保持一致。
-    private static readonly JsonSerializerOptions WriteOptions = new() {
+    private static readonly JsonSerializerOptions WriteOptions = new()
+    {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
-    private void InitJson() {
-        json = new(() => {
-            try {
+    private void InitJson()
+    {
+        json = new(() =>
+        {
+            try
+            {
                 return FileUtils.Exists(filePath) ? FileUtils.ReadAsJson(filePath) as JsonObject ?? new JsonObject() : new JsonObject();
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 Logger.Error(ex, $"读取配置文件失败（{filePath}）", LogBehavior.Alert);
                 return new JsonObject();
             }
@@ -53,19 +61,24 @@ public class JsonConfigProvider : IConfigProvider {
 
     [UnconditionalSuppressMessage("Trimming", "IL2026",
         Justification = "Config<T> 不在 AOT 路径上，泛型反射已在 TECHDEBT 第 8 节记录")]
-    public void Set<T>(string key, T? value, bool encrypted) {
+    public void Set<T>(string key, T? value, bool encrypted)
+    {
         cache[key] = value;
-        lock (this) {
-            if (value is null) {
+        lock (this)
+        {
+            if (value is null)
+            {
                 // 直接在 JSON 中表示为 null
                 json.Value[key] = null;
                 Logger.Trace($"配置已修改：{key} = null（{filePath}）");
-            } else if (encrypted) {
+            } else if (encrypted)
+            {
                 // 需要加密，在 JSON 中保存密文字符串
                 throw new NotImplementedException("加密需要改为使用识别码，现在尚未实现。");
                 // Logger.Trace($"配置已修改：{key} = 已加密（{filePath}）");
                 // json.Value[key] = CryptographyUtils.AesEncrypt(value is string str ? str : JsonSerializer.Serialize(value));
-            } else {
+            } else
+            {
                 // 用 JsonNode 保留原始结构
                 JsonNode node = JsonSerializer.SerializeToNode(value)!;
                 json.Value[key] = node;
@@ -76,41 +89,51 @@ public class JsonConfigProvider : IConfigProvider {
     }
     [UnconditionalSuppressMessage("Trimming", "IL2026",
         Justification = "Config<T> 不在 AOT 路径上，泛型反射已在 TECHDEBT 第 8 节记录")]
-    public T? Read<T>(string key, T? defaultValue, bool encrypted) {
+    public T? Read<T>(string key, T? defaultValue, bool encrypted)
+    {
         if (cache.TryGetValue(key, out var cachedValue)) return (T?) cachedValue; // 读取缓存
         JsonNode? entry;
-        lock (this) {
+        lock (this)
+        {
             if (!json.Value.TryGetPropertyValue(key, out entry)) return defaultValue; // 未找到该键
             entry = entry?.DeepClone();
         }
-        try {
+        try
+        {
             T? result;
-            if (entry is null) {
+            if (entry is null)
+            {
                 result = default;
-            } else if (encrypted) {
+            } else if (encrypted)
+            {
                 string plainText = CryptographyUtils.AesDecrypt(entry.GetValue<string>())!;
                 result = typeof(T) == typeof(string) ? (T) (object) plainText : JsonSerializer.Deserialize<T>(plainText, SerializerOptions);
-            } else {
+            } else
+            {
                 result = entry.Deserialize<T>(SerializerOptions);
             }
             cache[key] = result;
             return result;
-        } catch (CryptographicException ex) {
+        } catch (CryptographicException ex)
+        {
             Logger.Error(ex, $"解密配置失败，该配置将被重置（{key}）", LogBehavior.Alert);
             Remove(key);
             return defaultValue;
         }
     }
 
-    public bool HasValue(string key) {
+    public bool HasValue(string key)
+    {
         lock (this) return json.Value.ContainsKey(key);
     }
-    public void Remove(string key) {
+    public void Remove(string key)
+    {
         lock (this) json.Value.Remove(key);
         cache.TryRemove(key, out _);
         MakeDirty();
     }
-    public void DiscardCache() {
+    public void DiscardCache()
+    {
         lock (this) InitJson();
         cache.Clear();
     }
@@ -119,13 +142,16 @@ public class JsonConfigProvider : IConfigProvider {
 
     private readonly RateLimitedWorker saveWorker;
     private bool isDirty = false;
-    public void MakeDirty() {
+    public void MakeDirty()
+    {
         lock (this) isDirty = true;
         saveWorker.Start();
     }
     /// <summary>同步保存配置，并等待同一实例正在进行的保存完成；保存失败时保留待保存状态。</summary>
-    public void Save() {
-        lock (this) {
+    public void Save()
+    {
+        lock (this)
+        {
             if (!isDirty) return;
             FileUtils.WriteAtomic(filePath, json.Value.ToJsonString(WriteOptions));
             isDirty = false;
@@ -133,7 +159,8 @@ public class JsonConfigProvider : IConfigProvider {
     }
 }
 
-public static class ConfigProviders {
+public static class ConfigProviders
+{
     public static JsonConfigProvider Default = new(Path.Combine(Paths.AppDataThenName, "config.json"));
 }
 
@@ -144,7 +171,8 @@ public static class ConfigProviders {
 /// <summary>
 /// 当前获取到的配置值。
 /// </summary>
-public class PreviewGetEventArgs<T>(T? value) : EventArgs {
+public class PreviewGetEventArgs<T>(T? value) : EventArgs
+{
     public T? Value { get; set; } = value;
 }
 
@@ -152,7 +180,8 @@ public class PreviewGetEventArgs<T>(T? value) : EventArgs {
 /// 使用固定的 <see cref="IConfigProvider"/> 的配置项。
 /// <para/>若不指定 <paramref name="provider"/>，则使用 <see cref="ConfigProviders.Default"/>。
 /// </summary>
-public class ConfigEntry<T>(string key, T? defaultValue, bool encrypted = false, IConfigProvider? provider = null) {
+public class ConfigEntry<T>(string key, T? defaultValue, bool encrypted = false, IConfigProvider? provider = null)
+{
     public IConfigProvider Provider { get; } = provider ?? ConfigProviders.Default;
 
     /// <summary>
@@ -165,23 +194,27 @@ public class ConfigEntry<T>(string key, T? defaultValue, bool encrypted = false,
     public event Action<PreviewGetEventArgs<T>, IConfigProvider>? PreviewGet;
 
     public void Edit(Func<T?, T?> editFunc) => Set(editFunc(Get()));
-    public void Edit(RefAction editAction) {
+    public void Edit(RefAction editAction)
+    {
         var current = Get();
         editAction(ref current);
         Set(current);
     }
     public delegate void RefAction(ref T? value);
 
-    public void Set(T? value) {
+    public void Set(T? value)
+    {
         Provider.Set(key, value, encrypted);
         Changed?.Invoke(value);
     }
-    public void Reset() {
+    public void Reset()
+    {
         if (!Provider.HasValue(key)) return; // 值未设置，无需重置
         Provider.Remove(key);
         Changed?.Invoke(defaultValue);
     }
-    public T? Get() {
+    public T? Get()
+    {
         PreviewGetEventArgs<T> args = new(Provider.Read(key, defaultValue, encrypted));
         PreviewGet?.Invoke(args, Provider);
         return args.Value;
@@ -192,7 +225,8 @@ public class ConfigEntry<T>(string key, T? defaultValue, bool encrypted = false,
 /// <summary>
 /// 在每次操作时动态指定 <see cref="IConfigProvider"/> 的配置项。
 /// </summary>
-public class DynamicConfigEntry<T>(string key, T? defaultValue, bool encrypted = false) {
+public class DynamicConfigEntry<T>(string key, T? defaultValue, bool encrypted = false)
+{
     /// <summary>
     /// 当调整配置项的值时触发，参数为新值。<para/>新值可能和旧值相同。
     /// </summary>
@@ -204,23 +238,27 @@ public class DynamicConfigEntry<T>(string key, T? defaultValue, bool encrypted =
 
 
     public void Edit(Func<T?, T?> editFunc, IConfigProvider provider) => Set(editFunc(Get(provider)), provider);
-    public void Edit(RefAction editAction, IConfigProvider provider) {
+    public void Edit(RefAction editAction, IConfigProvider provider)
+    {
         var current = Get(provider);
         editAction(ref current);
         Set(current, provider);
     }
     public delegate void RefAction(ref T? value);
 
-    public void Set(T? value, IConfigProvider provider) {
+    public void Set(T? value, IConfigProvider provider)
+    {
         provider.Set(key, value, encrypted);
         Changed?.Invoke(value);
     }
-    public void Reset(IConfigProvider provider) {
+    public void Reset(IConfigProvider provider)
+    {
         if (!provider.HasValue(key)) return; // 值未设置，无需重置
         provider.Remove(key);
         Changed?.Invoke(defaultValue);
     }
-    public T? Get(IConfigProvider provider) {
+    public T? Get(IConfigProvider provider)
+    {
         PreviewGetEventArgs<T> args = new(provider.Read(key, defaultValue, encrypted));
         PreviewGet?.Invoke(args, provider);
         return args.Value;
@@ -231,30 +269,39 @@ public class DynamicConfigEntry<T>(string key, T? defaultValue, bool encrypted =
 
 #endregion
 
-public static class ConfigUtils {
+public static class ConfigUtils
+{
 
     /// <summary>立即保存所有配置。</summary>
-    public static void SaveAll() {
-        foreach (var weakRef in JsonConfigProvider.allProviders) {
+    public static void SaveAll()
+    {
+        foreach (var weakRef in JsonConfigProvider.allProviders)
+        {
             if (weakRef.TryGetTarget(out var provider)) provider.Save();
         }
     }
 
-    private static readonly Lazy<JsonObject> secret = new(() => {
+    private static readonly Lazy<JsonObject> secret = new(() =>
+    {
         string filePath = Path.Combine(Paths.AppData, "Meloong", "Dev", "secret.json");
-        try {
+        try
+        {
             return FileUtils.Exists(filePath) ? JsonNode.Parse(FileUtils.ReadAsString(filePath)) as JsonObject ?? throw new JsonException("secret.json 不是 JSON 对象") : new JsonObject();
-        } catch {
+        } catch
+        {
             throw new InvalidDataException($"读取密钥文件失败（{filePath}），请检查文件内容与加密格式。");
         }
     });
 
     /// <summary>从 secret.json 中读取加密的密钥；如果未找到对应密钥则抛出异常。</summary>
-    public static string GetSecret(string key) {
+    public static string GetSecret(string key)
+    {
         string value = secret.Value[key]?.GetValue<string>() ?? throw new KeyNotFoundException($"未找到密钥：{key}");
-        try {
+        try
+        {
             return CryptographyUtils.AesDecrypt(value)!;
-        } catch {
+        } catch
+        {
             throw new InvalidDataException($"读取密钥失败（{key}），请检查文件内容与加密格式。");
         }
     }

@@ -1,13 +1,16 @@
 namespace MeloongCore.Tests;
 
-public class WorkerTest : TestBase {
+public class WorkerTest : TestBase
+{
 
     [Test]
-    public async Task Run_在工作线程执行工作负载() {
+    public async Task Run_在工作线程执行工作负载()
+    {
         int callerThreadId = Thread.CurrentThread.ManagedThreadId;
         int workloadThreadId = callerThreadId;
         using var started = new ManualResetEventSlim(false);
-        var worker = new RedoableWorker(() => {
+        var worker = new RedoableWorker(() =>
+        {
             workloadThreadId = Thread.CurrentThread.ManagedThreadId;
             started.Set();
         });
@@ -21,17 +24,21 @@ public class WorkerTest : TestBase {
     }
 
     [Test]
-    public async Task Run_运行中再次调用只重跑一次() {
+    public async Task Run_运行中再次调用只重跑一次()
+    {
         int callerThreadId = Thread.CurrentThread.ManagedThreadId;
         int runCount = 0;
         var workloadThreadIds = new ConcurrentQueue<int>();
         using var firstStarted = new ManualResetEventSlim(false);
-        var worker = new RedoableWorker(ct => {
+        var worker = new RedoableWorker(ct =>
+        {
             int currentRun = Interlocked.Increment(ref runCount);
             workloadThreadIds.Enqueue(Thread.CurrentThread.ManagedThreadId);
-            if (currentRun == 1) {
+            if (currentRun == 1)
+            {
                 firstStarted.Set();
-                while (true) {
+                while (true)
+                {
                     ct?.ThrowIfCancellationRequested();
                     Thread.Sleep(10);
                 }

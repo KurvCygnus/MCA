@@ -1,9 +1,11 @@
 namespace MeloongCore.Tests;
 
-public class ProgressTest : TestBase {
+public class ProgressTest : TestBase
+{
 
     [Test]
-    public async Task ProgressChanged_主进度实际改变时触发() {
+    public async Task ProgressChanged_主进度实际改变时触发()
+    {
         var progress = new ProgressProvider();
         int changedCount = 0;
         progress.ProgressChanged += _ => changedCount++;
@@ -18,11 +20,13 @@ public class ProgressTest : TestBase {
     }
 
     [Test]
-    public async Task ProgressChanged_子进度改变时向父级传播() {
+    public async Task ProgressChanged_子进度改变时向父级传播()
+    {
         var progress = new ProgressProvider();
         int changedCount = 0;
         (double actual, double skiped) changedProgress = default;
-        progress.ProgressChanged += value => {
+        progress.ProgressChanged += value =>
+        {
             changedCount++;
             changedProgress = value;
         };
@@ -37,7 +41,8 @@ public class ProgressTest : TestBase {
     }
 
     [Test]
-    public async Task ProgressChanged_不会触发Observe() {
+    public async Task ProgressChanged_不会触发Observe()
+    {
         var progress = new ProgressProvider();
         int changedCount = 0;
         progress.ProgressChanged += _ => changedCount++;
@@ -50,15 +55,18 @@ public class ProgressTest : TestBase {
     }
 
     [Test]
-    public async Task ProgressObserver_监听进度变化并更新UI() {
+    public async Task ProgressObserver_监听进度变化并更新UI()
+    {
         var progress = new ProgressProvider();
         int updateCount = 0;
         double updatedProgress = 0;
 
-        using (var observer = new ProgressObserver(progress, value => {
+        using (var observer = new ProgressObserver(progress, value =>
+        {
             updateCount++;
             updatedProgress = value;
-        }, TimeSpan.FromHours(1).TotalMilliseconds)) {
+        }, TimeSpan.FromHours(1).TotalMilliseconds))
+        {
             progress.Set(0.25);
 
             await Assert.That(updateCount).IsEqualTo(1);

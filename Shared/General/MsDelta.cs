@@ -5,21 +5,23 @@ namespace MeloongCore;
 /// <summary>
 /// 使用 Windows MsDelta API 生成、应用增量补丁文件。
 /// </summary>
-public static class MsDelta {
+public static class MsDelta
+{
 
     /// <summary>
     /// 生成增量补丁文件：比较 <paramref name="oldFilePath"/> 和 <paramref name="newFilePath"/>，将补丁写入 <paramref name="deltaFilePath"/>。
     /// </summary>
     /// <exception cref="FileNotFoundException" />
     /// <exception cref="Win32Exception" />
-    public static void Create(string oldFilePath, string newFilePath, string deltaFilePath) {
+    public static void Create(string oldFilePath, string newFilePath, string deltaFilePath)
+    {
         if (!FileUtils.Exists(oldFilePath)) throw new FileNotFoundException($"旧文件不存在：{oldFilePath}", oldFilePath);
         if (!FileUtils.Exists(newFilePath)) throw new FileNotFoundException($"新文件不存在：{newFilePath}", newFilePath);
         DirectoryUtils.Create(PathUtils.RemoveLastPart(deltaFilePath));
         Logger.Info($"正在生成补丁：{oldFilePath} → {newFilePath}，补丁文件将输出到：{deltaFilePath}");
         // fileTypeSet：https://learn.microsoft.com/en-us/previous-versions/bb417345(v=msdn.10)?redirectedfrom=MSDN#file-type-sets (15L: DELTA_FILE_TYPE_SET_EXECUTABLES)
         // 131072L: IgnoreFileSizeLimit, 32u: Crc32
-        if (!CreateDelta(15L, 131072L, 0L, 
+        if (!CreateDelta(15L, 131072L, 0L,
             PathUtils.ForApi(oldFilePath), PathUtils.ForApi(newFilePath), null, null, new DeltaInput(), IntPtr.Zero, 32u, PathUtils.ForApi(deltaFilePath)))
             throw new Win32Exception();
     }
@@ -29,7 +31,8 @@ public static class MsDelta {
     /// </summary>
     /// <exception cref="FileNotFoundException" />
     /// <exception cref="Win32Exception" />
-    public static void Apply(string oldFilePath, string deltaFilePath, string newFilePath) {
+    public static void Apply(string oldFilePath, string deltaFilePath, string newFilePath)
+    {
         if (!FileUtils.Exists(oldFilePath)) throw new FileNotFoundException($"旧文件不存在：{oldFilePath}", oldFilePath);
         if (!FileUtils.Exists(deltaFilePath)) throw new FileNotFoundException($"补丁文件不存在：{deltaFilePath}", deltaFilePath);
         DirectoryUtils.Create(PathUtils.RemoveLastPart(newFilePath));
@@ -41,7 +44,8 @@ public static class MsDelta {
 
     // API
     [StructLayout(LayoutKind.Sequential)]
-    private struct DeltaInput {
+    private struct DeltaInput
+    {
         public IntPtr Start;
         public IntPtr Size;
         [MarshalAs(UnmanagedType.Bool)] public bool Editable;

@@ -1,12 +1,14 @@
-using System.Globalization;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 
 namespace MeloongCore.Tests;
 
-public class LegacyJsonExtensionsTest {
+public class LegacyJsonExtensionsTest
+{
 
     [Test]
-    public async Task DeserializeJson_日期保持字符串且可还原同一时刻() {
+    public async Task DeserializeJson_日期保持字符串且可还原同一时刻()
+    {
         var token = "{\"time\": \"2026-10-23T08:30:00Z\"}".DeserializeJson<JObject>();
         await Assert.That(token).IsNotNull();
         var value = token!.Value<string>("time");
@@ -16,8 +18,9 @@ public class LegacyJsonExtensionsTest {
     }
 
     [Test]
-    public async Task DeserializeJson_空白输入返回Null() {
-        await Assert.That(((string?)null).DeserializeJson()).IsNull();
+    public async Task DeserializeJson_空白输入返回Null()
+    {
+        await Assert.That(((string?) null).DeserializeJson()).IsNull();
         await Assert.That("   ".DeserializeJson()).IsNull();
     }
 

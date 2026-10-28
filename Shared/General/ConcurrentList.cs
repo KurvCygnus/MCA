@@ -4,7 +4,8 @@ namespace MeloongCore;
 /// 使用粗粒度锁的线程安全 <see cref="List{T}"/> 实现。
 /// 通常建议使用 <see cref="ConcurrentBag{T}"/> 或其他线程安全集合，它们具有更好的性能。
 /// </summary>
-public class ConcurrentList<T> : IList<T>, IList {
+public class ConcurrentList<T> : IList<T>, IList
+{
 
     private readonly List<T> _items = [];
 
@@ -32,11 +33,13 @@ public class ConcurrentList<T> : IList<T>, IList {
     public readonly object SyncRoot = new();
     object ICollection.SyncRoot => SyncRoot;
 
-    public T this[int index] {
+    public T this[int index]
+    {
         get { lock (SyncRoot) { return _items[index]; } }
         set { lock (SyncRoot) { _items[index] = value; } }
     }
-    object? IList.this[int index] {
+    object? IList.this[int index]
+    {
         get => this[index];
         set { lock (SyncRoot) { _items[index] = (T) value!; } }
     }

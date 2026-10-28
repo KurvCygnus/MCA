@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace MeloongCore;
-public static class FileUtils {
+
+public static class FileUtils
+{
 
     #region 读取
 
@@ -11,11 +13,14 @@ public static class FileUtils {
     /// 打开指定文件的只读 <see cref="Stream"/>。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static Stream ReadAsStream(string filePath, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type? type = null) {
-        if (type is null) {
-            return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ 
+    public static Stream ReadAsStream(string filePath, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type? type = null)
+    {
+        if (type is null)
+        {
+            return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _
                 => new FileStream(PathUtils.ForApi(filePath), FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
-        } else {
+        } else
+        {
             return type.Assembly.GetManifestResourceStream(filePath) ?? throw new FileNotFoundException($"Embedded resource \"{filePath}\" was not found.");
         }
     }
@@ -24,7 +29,8 @@ public static class FileUtils {
     /// 读取文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static byte[] ReadAsBytes(string filePath, Type? type = null) {
+    public static byte[] ReadAsBytes(string filePath, Type? type = null)
+    {
         using Stream fs = FileUtils.ReadAsStream(filePath, type); // 不能使用 File.ReadAllBytes，它不指定 FileShare.ReadWrite，会在文件被占用时抛出异常
         using MemoryStream ms = new();
         fs.CopyTo(ms);
@@ -35,18 +41,21 @@ public static class FileUtils {
     /// 读取文件中的所有内容。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static string ReadAsString(string filePath, Encoding? encoding = null, Type? type = null) 
+    public static string ReadAsString(string filePath, Encoding? encoding = null, Type? type = null)
         => FileUtils.ReadAsBytes(filePath, type).GetString(encoding);
     /// <summary>
     /// 读取文件中的所有内容。
     /// <para/>若文件不存在或读取失败，返回 <see langword="null"/>，而不是抛出异常。
     /// <para/>若指定了 <paramref name="type"/>，则会改为从该类型的程序集中读取嵌入的资源。
     /// </summary>
-    public static string? TryReadAsString(string filePath, Encoding? encoding = null, Type? type = null) {
-        try {
+    public static string? TryReadAsString(string filePath, Encoding? encoding = null, Type? type = null)
+    {
+        try
+        {
             if (type == null && !FileUtils.Exists(filePath)) return null;
             return FileUtils.ReadAsBytes(filePath, type).GetString(encoding);
-        } catch {
+        } catch
+        {
             return null;
         }
     }
@@ -67,7 +76,8 @@ public static class FileUtils {
 
     internal static readonly JsonNodeOptions NodeOptions = new() { PropertyNameCaseInsensitive = true };
     //? internal 供同文件的 FileChecker 校验 IsJson 复用，保持与旧 Newtonsoft 一致的宽松解析（允许注释与尾逗号）。
-    internal static readonly JsonDocumentOptions DocumentOptions = new() {
+    internal static readonly JsonDocumentOptions DocumentOptions = new()
+    {
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true
     };
@@ -75,7 +85,8 @@ public static class FileUtils {
     /// <summary>
     /// 读取 JSON 文件中的所有内容。
     /// </summary>
-    public static JsonNode? ReadAsJson(string filePath, Encoding? encoding = null) {
+    public static JsonNode? ReadAsJson(string filePath, Encoding? encoding = null)
+    {
         var text = ReadAsString(filePath, encoding);
         return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text, NodeOptions, DocumentOptions);
     }
@@ -94,22 +105,24 @@ public static class FileUtils {
     /// 创建文件，并将 <paramref name="text" /> 写入文件。
     /// 若文件已存在，则会覆盖原文件。
     /// </summary>
-    public static void Write(string filePath, string text, Encoding? encoding = null) 
+    public static void Write(string filePath, string text, Encoding? encoding = null)
         => FileUtils.Write(filePath, (encoding ?? new UTF8Encoding()).GetBytes(text));
     /// <summary>
     /// 创建文件，并将 <paramref name="content" /> 写入文件。
     /// 若文件已存在，则会覆盖原文件。
     /// </summary>
-    public static void Write(string filePath, IEnumerable<byte> content) 
+    public static void Write(string filePath, IEnumerable<byte> content)
         => FileUtils.Write(filePath, [.. content]);
     /// <summary>
     /// 创建文件，并将 <paramref name="content" /> 写入文件。
     /// 若文件已存在，则会覆盖原文件。
     /// </summary>
-    public static void Write(string filePath, byte[] content) {
+    public static void Write(string filePath, byte[] content)
+    {
         DirectoryUtils.Create(PathUtils.RemoveLastPart(filePath));
         Logger.Trace($"写入文件：{filePath}（{content.Length} 字节）");
-        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+        {
             File.WriteAllBytes(PathUtils.ForApi(filePath), content);
         });
     }
@@ -122,16 +135,21 @@ public static class FileUtils {
     /// <summary>
     /// 原子写入文件。写入失败时目标文件保持不变。
     /// </summary>
-    public static void WriteAtomic(string filePath, byte[] content) {
+    public static void WriteAtomic(string filePath, byte[] content)
+    {
         string tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
-        try {
+        try
+        {
             FileUtils.Write(tempPath, content);
-            if (FileUtils.Exists(filePath)) {
+            if (FileUtils.Exists(filePath))
+            {
                 File.Replace(PathUtils.ForApi(tempPath), PathUtils.ForApi(filePath), null, true);
-            } else {
+            } else
+            {
                 File.Move(PathUtils.ForApi(tempPath), PathUtils.ForApi(filePath));
             }
-        } finally {
+        } finally
+        {
             FileUtils.Delete(tempPath);
         }
     }
@@ -141,8 +159,10 @@ public static class FileUtils {
     /// 会将流的位置主动重置到开头。
     /// 若文件已存在，则会覆盖原文件。
     /// </summary>
-    public static void Write(string filePath, Stream stream) {
-        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+    public static void Write(string filePath, Stream stream)
+    {
+        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+        {
             FileUtils.Delete(filePath);
             using FileStream fileStream = FileUtils.CreateAsStream(filePath);
             if (stream.CanSeek && stream.Position != 0) stream.Seek(0, SeekOrigin.Begin);
@@ -154,10 +174,12 @@ public static class FileUtils {
     /// 创建文件，并打开 <see cref="FileMode.Create"/> 模式的 <see cref="FileStream"/>。
     /// 若文件已存在，则会覆盖原文件。
     /// </summary>
-    public static FileStream CreateAsStream(string filePath) {
+    public static FileStream CreateAsStream(string filePath)
+    {
         DirectoryUtils.Create(PathUtils.RemoveLastPart(filePath));
         Logger.Trace($"创建文件流：{filePath}");
-        return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ => {
+        return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ =>
+        {
             FileUtils.Delete(filePath);
             return new FileStream(PathUtils.ForApi(filePath), FileMode.Create);
         });
@@ -167,14 +189,15 @@ public static class FileUtils {
     /// 在临时文件夹下创建一个随机名称的文件，并返回其路径。
     /// </summary>
     public static string CreateRandom()
-        => Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ 
+        => Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _
             => Path.GetTempFileName());
 
     /// <summary>
     /// 从 <paramref name="type"/> 的程序集中，读取指定 <paramref name="logicalName"/> 的嵌入的资源，写入到 <paramref name="localFilePath"/> 中。
     /// <para/> 如果文件已存在且内容相同，则不会写入。
     /// </summary>
-    public static void ExtractResources(string logicalName, string localFilePath, Type type) {
+    public static void ExtractResources(string logicalName, string localFilePath, Type type)
+    {
         var content = ReadAsBytes(logicalName, type);
         if (Exists(localFilePath) && CryptographyUtils.ComputeFileHash(localFilePath) == CryptographyUtils.ComputeHash(content)) return;
         Logger.Info($"将资源写入到文件：{logicalName} → {localFilePath}");
@@ -190,22 +213,26 @@ public static class FileUtils {
     /// 会创建对应文件夹、覆盖已有的文件。
     /// 若复制自身到自身，则不执行操作；若仅大小写不同，则重命名此文件。
     /// </summary>
-    public static void Copy(string sourceFilePath, string destFilePath) {
+    public static void Copy(string sourceFilePath, string destFilePath)
+    {
         sourceFilePath = PathUtils.ForCompare(sourceFilePath);
         destFilePath = PathUtils.ForCompare(destFilePath);
-        if (string.CompareOrdinal(sourceFilePath, destFilePath) == 0) {
+        if (string.CompareOrdinal(sourceFilePath, destFilePath) == 0)
+        {
             // 复制自身到自身，则不执行操作
             Logger.Trace($"复制文件到自身，不执行操作：{sourceFilePath} → {destFilePath}");
-        } else if (PathUtils.IsSame(sourceFilePath, destFilePath)) {
+        } else if (PathUtils.IsSame(sourceFilePath, destFilePath))
+        {
             // 路径仅大小写不同，等效于重命名
             Logger.Trace($"复制文件到自身，但大小写不同，等效于重命名文件：{sourceFilePath} → {destFilePath}");
             FileUtils.Move(sourceFilePath, destFilePath);
-        } else {
+        } else
+        {
             // 实际的复制
             DirectoryUtils.Create(PathUtils.RemoveLastPart(destFilePath));
             Logger.Trace($"复制文件：{sourceFilePath} → {destFilePath}");
             if (FileUtils.Exists(destFilePath)) FileUtils.SetReadOnly(destFilePath, false);
-            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ 
+            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _
                 => File.Copy(PathUtils.ForApi(sourceFilePath), PathUtils.ForApi(destFilePath), true));
         }
     }
@@ -215,28 +242,34 @@ public static class FileUtils {
     /// 会创建对应文件夹、覆盖已有的文件。
     /// 若指定了 <paramref name="toRecycleBin"/>，则在覆盖前将老文件删除到回收站。
     /// </summary>
-    public static void Move(string sourceFilePath, string destFilePath, bool toRecycleBin = false) {
+    public static void Move(string sourceFilePath, string destFilePath, bool toRecycleBin = false)
+    {
         sourceFilePath = PathUtils.ForCompare(sourceFilePath);
         destFilePath = PathUtils.ForCompare(destFilePath);
-        if (string.CompareOrdinal(sourceFilePath, destFilePath) == 0) {
+        if (string.CompareOrdinal(sourceFilePath, destFilePath) == 0)
+        {
             // 剪切自身到自身，则不执行操作
             Logger.Trace($"剪切文件到自身，不执行操作：{sourceFilePath} → {destFilePath}");
-        } else if (PathUtils.IsSame(sourceFilePath, destFilePath)) {
+        } else if (PathUtils.IsSame(sourceFilePath, destFilePath))
+        {
             // 路径仅大小写不同
             Logger.Trace($"剪切文件到自身，但大小写不同：{sourceFilePath} → {destFilePath}");
-            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+            {
                 var temp = Path.Combine(PathUtils.RemoveLastPart(sourceFilePath), Path.GetRandomFileName());
                 FileUtils.SetReadOnly(sourceFilePath, false);
                 if (FileUtils.Exists(destFilePath)) FileUtils.SetReadOnly(destFilePath, false);
                 File.Move(PathUtils.ForApi(sourceFilePath), PathUtils.ForApi(temp));
                 File.Move(PathUtils.ForApi(temp), PathUtils.ForApi(destFilePath));
             });
-        } else {
+        } else
+        {
             // 实际的剪切
             DirectoryUtils.Create(PathUtils.RemoveLastPart(destFilePath));
             FileUtils.Delete(destFilePath, toRecycleBin);
             Logger.Trace($"剪切文件：{sourceFilePath} → {destFilePath}");
-            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+            Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+            {
                 FileUtils.SetReadOnly(sourceFilePath, false);
                 if (FileUtils.Exists(destFilePath)) FileUtils.SetReadOnly(destFilePath, false);
                 File.Move(PathUtils.ForApi(sourceFilePath), PathUtils.ForApi(destFilePath));
@@ -257,20 +290,25 @@ public static class FileUtils {
     /// <para/>如果成功删除到回收站，返回 <see langword="true"/>。
     /// <para/>如果永久删除，返回 <see langword="false"/>。
     /// </returns>
-    public static bool? Delete(string filePath, bool toRecycleBin = false) {
+    public static bool? Delete(string filePath, bool toRecycleBin = false)
+    {
         if (!FileUtils.Exists(filePath)) return null;
         Logger.Trace($"{(toRecycleBin ? "将文件删除到回收站" : "删除文件")}：{filePath}");
         // 删除到回收站
-        if (toRecycleBin) {
-            try {
+        if (toRecycleBin)
+        {
+            try
+            {
                 DeleteToRecycleBin(filePath);
                 return true;
-            } catch (Exception ex) {
+            } catch (Exception ex)
+            {
                 Logger.Warn(ex, $"无法将文件删除到回收站，回退到永久删除：{filePath}");
             }
         }
         // 永久删除
-        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+        {
             FileUtils.SetReadOnly(filePath, false);
             File.Delete(PathUtils.ForApi(filePath));
         });
@@ -280,12 +318,15 @@ public static class FileUtils {
     /// <summary>
     /// 将文件或文件夹删除到回收站。
     /// </summary>
-    internal static void DeleteToRecycleBin(string target) {
+    internal static void DeleteToRecycleBin(string target)
+    {
         // 实际的删除方法
-        void Run() {
+        void Run()
+        {
             IShellItem? item = null;
             IFileOperation? op = null;
-            try {
+            try
+            {
                 var iid = typeof(IShellItem).GUID;
                 Marshal.ThrowExceptionForHR(SHCreateItemFromParsingName(PathUtils.RemoveExtendedPrefix(target), IntPtr.Zero, ref iid, out item));
                 // ReSharper disable once SuspiciousTypeConversion.Global
@@ -295,23 +336,30 @@ public static class FileUtils {
                 op.PerformOperations();
                 op.GetAnyOperationsAborted(out bool aborted);
                 if (aborted) throw new OperationCanceledException("Delete operation was aborted.");
-            } finally {
+            } finally
+            {
                 if (op != null && Marshal.IsComObject(op)) Marshal.FinalReleaseComObject(op);
                 if (item != null && Marshal.IsComObject(item)) Marshal.FinalReleaseComObject(item);
             }
         }
         // 在 STA 线程中执行删除方法
-        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA) {
+        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
+        {
             Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => Run());
-        } else {
+        } else
+        {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo? internalEx = null; // 捕获内部异常
-            var thread = new Thread(() => { 
-                try { 
-                    Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException or COMException, action: _ => Run()); 
-                } catch (Exception ex) { 
-                    internalEx = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex); 
-                } 
-            }) { IsBackground = true, Name = nameof(DeleteToRecycleBin) };
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException or COMException, action: _ => Run());
+                } catch (Exception ex)
+                {
+                    internalEx = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
+                }
+            })
+            { IsBackground = true, Name = nameof(DeleteToRecycleBin) };
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
             thread.Join();
@@ -326,7 +374,8 @@ public static class FileUtils {
     [ComImport, Guid("3AD05575-8857-4850-9277-11B85BDB8E09")]
     class FileOperation { }
     [ComImport, Guid("947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    interface IFileOperation {
+    interface IFileOperation
+    {
         void Advise(IntPtr pfops, out uint pdwCookie);
         void Unadvise(uint dwCookie);
         void SetOperationFlags(uint dwOperationFlags);
@@ -357,30 +406,39 @@ public static class FileUtils {
     /// 以只读模式打开压缩文件。
     /// 会先尝试 UTF8 编码，失败后换用 GB18030 编码。
     /// </summary>
-    public static ZipArchive OpenZip(string zipFilePath, CancellationToken c = default) {
-        ZipArchive TryOpen(Encoding encoding) {
+    public static ZipArchive OpenZip(string zipFilePath, CancellationToken c = default)
+    {
+        ZipArchive TryOpen(Encoding encoding)
+        {
             Logger.Trace($"尝试以 {encoding.EncodingName} 编码打开压缩包：{zipFilePath}");
             var result = ZipFile.Open(PathUtils.ForApi(zipFilePath), ZipArchiveMode.Read, encoding);
-            try {
+            try
+            {
                 _ = result.Entries; // 如果编码有误，会在这里抛出 DecoderFallbackException；如果文件异常，会在这里抛出 InvalidDataException
                 return result;
-            } catch {
+            } catch
+            {
                 result.Dispose();
                 throw;
             }
         }
-        return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), maxAttempts:10, isRetryAllowed: ex => ex is IOException, cancellationToken: c, func: _ => {
-            try {
-                try { // 尝试两种编码
+        return Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), maxAttempts: 10, isRetryAllowed: ex => ex is IOException, cancellationToken: c, func: _ =>
+        {
+            try
+            {
+                try
+                { // 尝试两种编码
                     return TryOpen(new UTF8Encoding(false, true));
-                } catch (DecoderFallbackException) {
+                } catch (DecoderFallbackException)
+                {
                     return TryOpen(Encoding.GetEncoding("GB18030"));
                 }
-            } catch (InvalidDataException ex) {
+            } catch (InvalidDataException ex)
+            {
                 throw new InvalidDataException($"文件不是压缩包，或者文件已损坏（{zipFilePath}）", ex);
             }
         });
-        
+
     }
 
     /// <summary>
@@ -388,11 +446,13 @@ public static class FileUtils {
     /// 会自动创建文件夹。会覆盖已有文件，但不会删除多余文件。
     /// </summary>
     /// <param name="p">参数为已完成的总比例（0~1）。</param>
-    public static void ExtractToDirectory(string compressionFile, string outputDirectory, CancellationToken c = default, ProgressProvider? p = null) {
+    public static void ExtractToDirectory(string compressionFile, string outputDirectory, CancellationToken c = default, ProgressProvider? p = null)
+    {
         compressionFile = PathUtils.ForApi(compressionFile);
         DirectoryUtils.Create(outputDirectory);
         // 解压 gz（gz 不需要考虑编码）
-        if (PathUtils.GetExtension(compressionFile) == "gz") {
+        if (PathUtils.GetExtension(compressionFile) == "gz")
+        {
             string outFilePath = Path.Combine(outputDirectory, PathUtils.GetFileNameWithoutExtension(compressionFile));
             Logger.Trace($"解压 gz 文件：{compressionFile} → {outFilePath}");
             using var fileStream = FileUtils.ReadAsStream(compressionFile);
@@ -407,7 +467,8 @@ public static class FileUtils {
         int totalCount = entries.Count;
         int doneCount = 0;
         Logger.Trace($"解压 zip 文件：{compressionFile} → {outputDirectory}（共 {totalCount} 项）");
-        foreach (var entry in entries) {
+        foreach (var entry in entries)
+        {
             c.ThrowIfCancellationRequested();
             doneCount++;
             if (totalCount > 0) p?.Set((double) doneCount / totalCount);
@@ -425,11 +486,12 @@ public static class FileUtils {
     /// 将指定文件夹的内容打包为 zip 文件。
     /// 会自动创建文件夹。会覆盖已有文件。
     /// </summary>
-    public static void CreateZipFromDirectory(string outputFullPath, string sourceDirectory) {
+    public static void CreateZipFromDirectory(string outputFullPath, string sourceDirectory)
+    {
         DirectoryUtils.Create(PathUtils.RemoveLastPart(outputFullPath));
         FileUtils.Delete(outputFullPath);
         Logger.Trace($"将文件夹中的内容压缩为 zip 文件：{sourceDirectory} → {outputFullPath}");
-        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ 
+        Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _
             => ZipFile.CreateFromDirectory(PathUtils.ForApi(sourceDirectory), PathUtils.ForApi(outputFullPath)));
     }
 
@@ -437,9 +499,11 @@ public static class FileUtils {
     /// 将多个文件打包为 zip 文件，所有文件都会被放在压缩文件的根目录。
     /// 会自动创建文件夹。会覆盖已有文件。
     /// </summary>
-    public static void CreateZipFromFiles(string outputFullPath, params string[] sourceFiles) {
+    public static void CreateZipFromFiles(string outputFullPath, params string[] sourceFiles)
+    {
         var sources = new Dictionary<string, string>();
-        foreach (var source in sourceFiles) {
+        foreach (var source in sourceFiles)
+        {
             string fileName = PathUtils.GetLastPart(source);
             if (sources.ContainsKey(fileName)) throw new ArgumentException($"尝试将多个同文件名的文件放进压缩包中（{fileName}）", nameof(sourceFiles));
             sources.Add(fileName, source);
@@ -452,10 +516,11 @@ public static class FileUtils {
     /// 会自动创建文件夹。会覆盖已有文件。
     /// </summary>
     /// <param name="sources">键为 zip 文件下的路径，值为文件的本地路径。</param>
-    public static void CreateZipFromFiles(string outputFullPath, IDictionary<string, string> sources) {
+    public static void CreateZipFromFiles(string outputFullPath, IDictionary<string, string> sources)
+    {
         DirectoryUtils.Create(PathUtils.RemoveLastPart(outputFullPath));
         FileUtils.Delete(outputFullPath);
-        using var archive = Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _ 
+        using var archive = Retrier.Attempt(delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, func: _
             => ZipFile.Open(PathUtils.ForApi(outputFullPath), ZipArchiveMode.Create));
         Logger.Trace($"创建 zip 文件：{sources.Count} 个文件 → {outputFullPath}\n{sources.Select(p => $"- {p.Value} → {p.Key}").Join('\n')}");
         foreach (var pair in sources) archive.CreateEntryFromFile(PathUtils.ForApi(pair.Value), pair.Key.Replace('\\', '/'), CompressionLevel.Optimal);
@@ -466,20 +531,24 @@ public static class FileUtils {
     /// <summary>
     /// 确定指定的文件是否存在。
     /// </summary>
-    public static bool Exists(string filePath) 
+    public static bool Exists(string filePath)
         => File.Exists(PathUtils.ForApi(filePath));
 
     /// <summary>
     /// 检查文件是否存在，且当前程序有独占的读写权限，未被其他进程占用。
     /// </summary>
-    public static bool IsAvailable(string filePath) {
+    public static bool IsAvailable(string filePath)
+    {
         if (!Exists(filePath)) return false;
-        try {
-            Retrier.Attempt(maxAttempts: 3, delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ => {
+        try
+        {
+            Retrier.Attempt(maxAttempts: 3, delay: _ => TimeSpan.FromMilliseconds(200), isRetryAllowed: ex => ex is IOException, action: _ =>
+            {
                 using var unused = new FileStream(PathUtils.ForApi(filePath), FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             });
             return true;
-        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) {
+        } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
             return false;
         }
     }
@@ -487,14 +556,15 @@ public static class FileUtils {
     /// <summary>
     /// 获取 <see cref="FileInfo"/> 对象。
     /// </summary>
-    public static FileInfo GetInfo(string path) 
+    public static FileInfo GetInfo(string path)
         => new(PathUtils.ForApi(path));
 
     /// <summary>
     /// 设置文件或文件夹的只读属性。
     /// 对文件夹使用时，只会设置文件夹本身的属性，不会递归设置其中的文件或子文件夹。
     /// </summary>
-    public static void SetReadOnly(string path, bool readOnly) {
+    public static void SetReadOnly(string path, bool readOnly)
+    {
         path = PathUtils.ForApi(path);
         var attributes = File.GetAttributes(path);
         var newAttributes = readOnly
@@ -510,7 +580,8 @@ public static class FileUtils {
 /// <summary>
 /// 检查文件是否符合校验规则，包括大小、Hash 值、是否为 JSON 文件。
 /// </summary>
-public class FileChecker {
+public class FileChecker
+{
 
     /// <summary>
     /// 文件的准确大小。
@@ -534,61 +605,69 @@ public class FileChecker {
     /// 是否要求为 JSON 文件。
     /// </summary>
     public bool IsJson = false;
-    
+
     // TODO: 重构此函数，使它变成 void，并抛出异常
     /// <summary>
     /// 检查文件。
     /// <para/>若成功则返回 <c>null</c>，失败则返回错误的描述文本（文本不以句号结尾）。
     /// <para/>不会抛出异常。
     /// </summary>
-    public string? Check(string localPath) {
-        try {
+    public string? Check(string localPath)
+    {
+        try
+        {
             var info = FileUtils.GetInfo(localPath);
             if (!info.Exists) return "文件不存在：" + localPath;
 
             long fileSize = info.Length;
-            if (ActualSize >= 0 && ActualSize != fileSize) {
+            if (ActualSize >= 0 && ActualSize != fileSize)
+            {
                 return $"文件大小应为 {ActualSize} B，实际为 {fileSize} B" +
                     (fileSize < 2000 ? "，内容为：" + FileUtils.ReadAsString(localPath) : "");
             }
-            if (MinSize >= 0 && MinSize > fileSize) {
+            if (MinSize >= 0 && MinSize > fileSize)
+            {
                 return $"文件大小应至少为 {MinSize} B，实际为 {fileSize} B" +
                     (fileSize < 2000 ? "，内容为：" + FileUtils.ReadAsString(localPath) : "");
             }
 
             string? hash = Hash;
-            if (!string.IsNullOrEmpty(hash)) {
+            if (!string.IsNullOrEmpty(hash))
+            {
                 hash = hash!.Lower();
-                switch (hash.Length) {
-                    case 32:
-                        string md5 = CryptographyUtils.ComputeFileHash(localPath);
-                        if (hash != md5) return "文件 MD5 应为 " + hash + "，实际为 " + md5;
-                        break;
-                    case 40:
-                        string sha1 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha1);
-                        if (hash != sha1) return "文件 SHA1 应为 " + hash + "，实际为 " + sha1;
-                        break;
-                    case 64:
-                        string sha256 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha256);
-                        if (hash != sha256) return "文件 SHA256 应为 " + hash + "，实际为 " + sha256;
-                        break;
-                    case 128:
-                        string sha512 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha512);
-                        if (hash != sha512) return "文件 SHA512 应为 " + hash + "，实际为 " + sha512;
-                        break;
-                    default:
-                        return $"无法识别的 Hash 类型（长度为 {hash.Length}）：{hash}";
+                switch (hash.Length)
+                {
+                case 32:
+                    string md5 = CryptographyUtils.ComputeFileHash(localPath);
+                    if (hash != md5) return "文件 MD5 应为 " + hash + "，实际为 " + md5;
+                    break;
+                case 40:
+                    string sha1 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha1);
+                    if (hash != sha1) return "文件 SHA1 应为 " + hash + "，实际为 " + sha1;
+                    break;
+                case 64:
+                    string sha256 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha256);
+                    if (hash != sha256) return "文件 SHA256 应为 " + hash + "，实际为 " + sha256;
+                    break;
+                case 128:
+                    string sha512 = CryptographyUtils.ComputeFileHash(localPath, CryptographyUtils.HashMethod.Sha512);
+                    if (hash != sha512) return "文件 SHA512 应为 " + hash + "，实际为 " + sha512;
+                    break;
+                default:
+                    return $"无法识别的 Hash 类型（长度为 {hash.Length}）：{hash}";
                 }
             }
 
-            if (IsJson) {
+            if (IsJson)
+            {
                 string content = FileUtils.ReadAsString(localPath);
                 if (content == "") return "读取到的文件为空";
                 _ = JsonNode.Parse(content, FileUtils.NodeOptions, FileUtils.DocumentOptions);
             }
 
             return null;
-        } catch (Exception ex) {
+        } catch (Exception ex)
+        {
             Logger.Warn(ex, "检查文件出错");
             return ex.GetDisplay(false);
         }

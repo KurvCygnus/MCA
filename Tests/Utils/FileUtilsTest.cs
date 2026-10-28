@@ -1,31 +1,39 @@
 namespace MeloongCore.Tests;
-public class FileUtilsTest : TestWithFolder {
+
+public class FileUtilsTest : TestWithFolder
+{
 
     [Test]
-    public async Task 文件可用性_只读与占用() {
+    public async Task 文件可用性_只读与占用()
+    {
         string path = Path.Combine(tempFolder, "available.txt");
         await Assert.That(FileUtils.IsAvailable(path)).IsTrue();
         FileUtils.Write(path, "test");
         string apiPath = PathUtils.ForApi(path);
         File.SetAttributes(apiPath, FileAttributes.ReadOnly);
-        try {
+        try
+        {
             await Assert.That(FileUtils.IsAvailable(path)).IsTrue();
             await Assert.That((File.GetAttributes(apiPath) & FileAttributes.ReadOnly) != 0).IsTrue();
-        } finally {
+        } finally
+        {
             File.SetAttributes(apiPath, FileAttributes.Normal);
         }
-        using (var stream = new FileStream(apiPath, FileMode.Open, FileAccess.Read, FileShare.None)) {
+        using (var stream = new FileStream(apiPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
             await Assert.That(FileUtils.IsAvailable(path)).IsFalse();
         }
         await Assert.That(FileUtils.IsAvailable(path)).IsTrue();
     }
 
     [Test]
-    public async Task 文件可用性_短暂占用后重试() {
+    public async Task 文件可用性_短暂占用后重试()
+    {
         string path = Path.Combine(tempFolder, "temporary-lock.txt");
         FileUtils.Write(path, "test");
         using var stream = new FileStream(PathUtils.ForApi(path), FileMode.Open, FileAccess.Read, FileShare.None);
-        var release = Task.Run(async () => {
+        var release = Task.Run(async () =>
+        {
             await Task.Delay(100);
             stream.Dispose();
         });
@@ -39,7 +47,8 @@ public class FileUtilsTest : TestWithFolder {
     [Test]
     [Arguments("GB Encoding.zip")]
     [Arguments("UTF8 Encoding.zip")]
-    public async Task 解压_ReadZip(string testFile) {
+    public async Task 解压_ReadZip(string testFile)
+    {
         string output = Path.Combine(tempFolder, "Extracted");
         var p = new ProgressProvider();
         FileUtils.ExtractToDirectory(GetTestFile(testFile), output, p: p);
@@ -52,7 +61,8 @@ public class FileUtilsTest : TestWithFolder {
 
     [Test]
     [Arguments("GZ.gz", "LTCat")]
-    public async Task 解压_ReadGz(string testFile, string containsText) {
+    public async Task 解压_ReadGz(string testFile, string containsText)
+    {
         string output = Path.Combine(tempFolder, "Extracted");
         var p = new ProgressProvider();
         FileUtils.ExtractToDirectory(GetTestFile(testFile), output, p: p);

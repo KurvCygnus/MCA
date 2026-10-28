@@ -1,7 +1,10 @@
 namespace MeloongCore.Wpf;
-public static class Main {
 
-    public static void Init() {
+public static class Main
+{
+
+    public static void Init()
+    {
         ModernTooltipService.Init();
     }
 

@@ -1,12 +1,15 @@
 using System.Text.Json.Nodes;
 
 namespace MeloongCore.Tests;
-public class ConfigTest : TestWithFolder {
+
+public class ConfigTest : TestWithFolder
+{
 
     #region JsonConfigProvider
 
     [Test]
-    public async Task JsonConfigProvider_字符串列表() {
+    public async Task JsonConfigProvider_字符串列表()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<List<string>>("list", [], provider: provider);
@@ -22,7 +25,8 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task JsonConfigProvider_自定义类列表() {
+    public async Task JsonConfigProvider_自定义类列表()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<List<TestConfigItem>>("items", [], provider: provider);
@@ -48,7 +52,8 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task ConfigEntry_SetNull_RoundTripsThroughJson() {
+    public async Task ConfigEntry_SetNull_RoundTripsThroughJson()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<string>("nullable", "fallback", provider: provider);
@@ -63,7 +68,8 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task ConfigEntry_SetString_RoundTripsThroughJson() {
+    public async Task ConfigEntry_SetString_RoundTripsThroughJson()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<string>("text", "fallback", provider: provider);
@@ -77,7 +83,8 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task ConfigUtils_SaveAll_WritesPendingChangesImmediately() {
+    public async Task ConfigUtils_SaveAll_WritesPendingChangesImmediately()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<string>("text", "fallback", provider: provider);
@@ -92,7 +99,8 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task JsonConfigProvider_Save_原子替换且不残留临时文件() {
+    public async Task JsonConfigProvider_Save_原子替换且不残留临时文件()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         FileUtils.Write(configFile, "{\"existing\":true}");
         var provider = new JsonConfigProvider(configFile);
@@ -101,14 +109,15 @@ public class ConfigTest : TestWithFolder {
         entry.Set("updated");
         provider.Save();
 
-        JsonObject config = (JsonObject)JsonNode.Parse(FileUtils.ReadAsString(configFile))!;
+        JsonObject config = (JsonObject) JsonNode.Parse(FileUtils.ReadAsString(configFile))!;
         await Assert.That(config["existing"]!.GetValue<bool>()).IsTrue();
         await Assert.That(config["text"]!.GetValue<string>()).IsEqualTo("updated");
         await Assert.That(DirectoryUtils.EnumerateFiles(tempFolder, searchPattern: "config.json.*.tmp")).IsEmpty();
     }
 
     [Test]
-    public async Task JsonConfigProvider_Save_等待正在进行的保存() {
+    public async Task JsonConfigProvider_Save_等待正在进行的保存()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<string>("text", "", provider: provider);
@@ -117,10 +126,12 @@ public class ConfigTest : TestWithFolder {
         Task firstSave, secondSave;
         bool firstBlocked, secondRunning, returnedEarly;
 
-        lock (provider) {
+        lock (provider)
+        {
             entry.Set("pending");
             Thread? firstThread = null;
-            firstSave = Task.Factory.StartNew(() => {
+            firstSave = Task.Factory.StartNew(() =>
+            {
                 firstThread = Thread.CurrentThread;
                 firstStarted.Set();
                 provider.Save();
@@ -128,7 +139,8 @@ public class ConfigTest : TestWithFolder {
             // 阻止首次保存写盘，稳定复现第二次 Save 在写盘完成前返回的窗口。
             firstBlocked = firstStarted.Wait(3000) && SpinWait.SpinUntil(
                 () => (firstThread!.ThreadState & ThreadState.WaitSleepJoin) != 0, 3000);
-            secondSave = Task.Factory.StartNew(() => {
+            secondSave = Task.Factory.StartNew(() =>
+            {
                 secondStarted.Set();
                 provider.Save();
             }, TaskCreationOptions.LongRunning);
@@ -145,16 +157,19 @@ public class ConfigTest : TestWithFolder {
     }
 
     [Test]
-    public async Task JsonConfigProvider_Save_写入失败后可直接重试() {
+    public async Task JsonConfigProvider_Save_写入失败后可直接重试()
+    {
         string configFile = Path.Combine(tempFolder, "config.json");
         var provider = new JsonConfigProvider(configFile);
         var entry = new ConfigEntry<string>("text", "", provider: provider);
         entry.Set("before");
         provider.Save();
 
-        lock (provider) {
+        lock (provider)
+        {
             entry.Set("after");
-            using (var stream = new FileStream(PathUtils.ForApi(configFile), FileMode.Open, FileAccess.Read, FileShare.None)) {
+            using (var stream = new FileStream(PathUtils.ForApi(configFile), FileMode.Open, FileAccess.Read, FileShare.None))
+            {
                 Assert.Throws<IOException>(() => provider.Save());
             }
             // 无需再次 Set，失败的内容仍应处于待保存状态。
@@ -165,7 +180,8 @@ public class ConfigTest : TestWithFolder {
         await Assert.That(reloadedEntry.Get()).IsEqualTo("after");
     }
 
-    public class TestConfigItem {
+    public class TestConfigItem
+    {
         public string Name { get; set; } = "";
         public int Count { get; set; }
         public bool Enabled { get; set; }
