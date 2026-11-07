@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 namespace MeloongCore;
 
@@ -35,7 +36,16 @@ public class JsonConfigProvider : IConfigProvider
     // 反序列化后的结果缓存
     private readonly ConcurrentDictionary<string, object?> cache = new();
     //? Newtonsoft 的 ToObject/反序列化默认大小写不敏感，STJ 需显式开启以保持 Config<T> 读取语义不变。
-    private static readonly JsonSerializerOptions SerializerOptions = new() { PropertyNameCaseInsensitive = true };
+    //? IncludeFields：STJ 默认只序列化属性，公开字段型配置类（Folder/Version 等公开字段成员）会被落盘为 {}，
+    //? 读取时经构造器参数绑定反序列化即失败。
+    //? Version 转换器：System.Version 的公共属性全部只读，STJ 无法反序列化，需以字符串形态往返，
+    //? 否则 Java 列表里的版本号会静默清零。
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        IncludeFields = true,
+        Converters = { new VersionToStringConverter() },
+    };
     //? UnsafeRelaxedJsonEscaping 让中文等非 ASCII 字符原样写入，与旧 Newtonsoft 的文件布局保持一致。
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
@@ -80,7 +90,7 @@ public class JsonConfigProvider : IConfigProvider
             } else
             {
                 // 用 JsonNode 保留原始结构
-                JsonNode node = JsonSerializer.SerializeToNode(value)!;
+                JsonNode node = JsonSerializer.SerializeToNode(value, SerializerOptions)!;
                 json.Value[key] = node;
                 Logger.Trace($"配置已修改：{key} = {node.ToJsonString()}（{filePath}）");
             }
@@ -120,6 +130,18 @@ public class JsonConfigProvider : IConfigProvider
             Remove(key);
             return defaultValue;
         }
+    }
+
+    /// <summary>
+    /// System.Version 以其 ToString() 字符串形态往返（如 "16.0.1"）。
+    /// STJ 无法反序列化 Version（公共属性全部只读，且存在多个公共构造器），原样往返会把版本数据清零。
+    /// </summary>
+    private sealed class VersionToStringConverter : JsonConverter<Version>
+    {
+        public override Version? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetString() is { } text ? new Version(text) : null;
+        public override void Write(Utf8JsonWriter writer, Version value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToString());
     }
 
     public bool HasValue(string key)

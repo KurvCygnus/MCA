@@ -180,11 +180,43 @@ public class ConfigTest : TestWithFolder
         await Assert.That(reloadedEntry.Get()).IsEqualTo("after");
     }
 
+    [Test]
+    public async Task JsonConfigProvider_公开字段类与Version往返()
+    {
+        // 公开字段配置类形态：主构造器 + 公开字段（含只读与 Version）。
+        // STJ 默认不序列化字段，此类会落盘为 {} 且读取时构造器绑定失败；
+        // System.Version 公共属性全只读，原样往返会清零——三者一并在此锁定。
+        string configFile = Path.Combine(tempFolder, "config.json");
+        var provider = new JsonConfigProvider(configFile);
+        var entry = new ConfigEntry<List<FieldConfigItem>>("items", [], provider: provider);
+
+        entry.Set([new("C:\\Java\\bin\\", new Version(16, 0, 1)), new("D:\\JDK\\", null)]);
+        provider.Save();
+
+        var reloadedEntry = new ConfigEntry<List<FieldConfigItem>>("items", [], provider: new JsonConfigProvider(configFile));
+        var reloadedValue = reloadedEntry.Get();
+        await Assert.That(reloadedValue is not null).IsTrue();
+        await Assert.That(reloadedValue![0].Folder).IsEqualTo("C:\\Java\\bin\\");
+        await Assert.That(reloadedValue[0].Version).IsEqualTo(new Version(16, 0, 1));
+        await Assert.That(reloadedValue[1].Version).IsNull();
+
+        string json = FileUtils.ReadAsString(configFile);
+        await Assert.That(json).Contains("\"Folder\": \"C:\\\\Java\\\\bin\\\\\"");
+        await Assert.That(json).Contains("\"Version\": \"16.0.1\"");
+    }
+
     public class TestConfigItem
     {
         public string Name { get; set; } = "";
         public int Count { get; set; }
         public bool Enabled { get; set; }
+    }
+
+    /// <summary>公开字段配置类形态：主构造器 + 公开字段（含只读）。</summary>
+    public class FieldConfigItem(string folder, Version? version = null)
+    {
+        public readonly string Folder = folder;
+        public Version? Version = version;
     }
 
     #endregion
